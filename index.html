@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>VTU Academic Assistant — Hackathon Demo</title>
+
+  <!-- Tailwind (CDN for demo) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Inter font -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+    body { font-family: 'Inter', sans-serif; background: linear-gradient(to bottom right,#eef2ff,#f7f9fc); }
+    #outputArea { max-height: 420px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #4f46e5 #e5e7eb; }
+    #outputArea::-webkit-scrollbar { width: 8px; }
+    #outputArea::-webkit-scrollbar-track { background: #e5e7eb; border-radius: 4px; }
+    #outputArea::-webkit-scrollbar-thumb { background-color: #4f46e5; border-radius: 4px; }
+  </style>
+</head>
+<body class="min-h-screen flex items-start justify-center p-4 sm:p-8">
+
+  <div class="w-full max-w-2xl bg-white shadow-2xl rounded-xl p-6 md:p-8 mt-10">
+    <header class="text-center mb-4 md:mb-6">
+      <h1 class="text-3xl font-extrabold text-indigo-700">VTU Academic Assistant <span class="text-lg text-gray-500">(Demo)</span></h1>
+      <p class="text-gray-600 mt-1">Syllabus Guidance, Notes, PYQs & Lab Programs — Frontend Demo</p>
+      <p class="text-sm text-gray-500 mt-2">Built by <span class="font-semibold text-indigo-600">Team Synapse</span> — VTU Hackathon 2025</p>
+    </header>
+
+    <!-- Demo Mode Toggle -->
+    <div class="flex items-center justify-center gap-2 mb-4">
+      <input id="demoToggle" type="checkbox" class="w-4 h-4 text-indigo-600 border-gray-300 rounded" checked>
+      <label for="demoToggle" class="text-sm text-gray-600">Demo Mode (mock responses) — keep enabled for offline hackathon demo</label>
+    </div>
+
+    <!-- Input -->
+    <div class="flex flex-col gap-4">
+      <textarea id="queryInput" placeholder="E.g., 'Syllabus for 5th sem CSE DBMS module 3' or 'Steps for Band Gap physics lab'." rows="4" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 resize-none text-gray-700"></textarea>
+      <div class="flex gap-3">
+        <button id="askButton" onclick="askGemini()" class="bg-indigo-600 text-white py-3 px-4 rounded-lg font-semibold shadow-md hover:scale-105 transform transition duration-150 ease-in-out focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-30 disabled:bg-indigo-400">
+          Get Guidance
+        </button>
+        <button id="clearBtn" onclick="clearOutput()" class="bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-medium shadow-sm hover:bg-gray-200 transition">Clear</button>
+        <button id="exampleBtn" onclick="insertExample()" class="ml-auto bg-indigo-50 text-indigo-700 py-3 px-4 rounded-lg font-medium hover:bg-indigo-100 transition">Insert Example</button>
+      </div>
+    </div>
+
+    <!-- Output -->
+    <div class="mt-8">
+      <h2 class="text-xl font-bold text-gray-700 mb-3 border-b pb-2">AI Response</h2>
+      <div id="outputArea" class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+        <p id="responseText" class="text-gray-800 leading-relaxed min-h-16">
+          Your answers will appear here. Demo mode is enabled by default — the assistant returns mock, polished responses suitable for a hackathon demo.
+        </p>
+
+        <div id="loadingIndicator" class="hidden flex items-center justify-center space-x-2 text-indigo-600 mt-4">
+          <div class="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+          <span>Searching VTU resources...</span>
+        </div>
+
+        <div id="sourcesArea" class="mt-4 pt-4 border-t border-gray-200 hidden">
+          <h3 class="text-sm font-semibold text-gray-600 mb-2">Sources (Grounded Content):</h3>
+          <ul id="sourcesList" class="space-y-1 text-sm text-gray-500"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Basic helpers
+    const queryInput = document.getElementById('queryInput');
+    const askButton = document.getElementById('askButton');
+    const responseText = document.getElementById('responseText');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const sourcesArea = document.getElementById('sourcesArea');
+    const sourcesList = document.getElementById('sourcesList');
+    const demoToggle = document.getElementById('demoToggle');
+
+    function formatMarkdown(text) {
+      if (!text) return "";
+      // Minimal formatting: bold, italics, line breaks, links
+      text = text.replace(/\\(.?)\\*/g, '<strong>$1</strong>');
+      text = text.replace(/\(.?)\*/g, '<em>$1</em>');
+      // transform simple markdown links [text](url)
+      text = text.replace(/\[(.?)\]\((https?:\/\/.?)\)/g, '<a href="$2" target="_blank" class="text-indigo-500 hover:underline">$1</a>');
+      text = text.replace(/\n/g, '<br>');
+      return text;
+    }
+
+    // Mock responses for demo mode
+    const mockResponses = [
+      {
+        title: "5th Sem CSE – DBMS Module 3 Summary",
+        text: **5th Sem CSE – DBMS Module 3 Summary**\n\n- *Normalization*: 1NF, 2NF, 3NF, BCNF\n- *Functional Dependencies* and *Decomposition*\n- *Lossless Join* and *Dependency Preservation*\n\n**Tip:** Focus on PYQs about BCNF & decomposition steps.,
+        sources: [
+          { title: "VTU DBMS Syllabus (demo link)", uri: "https://vtu.ac.in" },
+          { title: "DBMS Notes - Demo", uri: "https://example.com/dbms-notes" }
+        ]
+      },
+      {
+        title: "Physics Lab – Band Gap of a Semiconductor",
+        text: **Physics Lab – Band Gap of a Semiconductor**\n\n- Measure reverse saturation current (I₀) at different temperatures.\n- Plot ln(I₀) vs 1/T.\n- Slope = -Eg/2k → calculate *Energy Band Gap (Eg)*.\n\n**Expected Eg:** ~1.1 eV for Silicon.,
+        sources: [
+          { title: "VTU Physics Lab Manual (demo)", uri: "https://vtu.ac.in" }
+        ]
+      },
+      {
+        title: "How to approach PYQs",
+        text: **How to approach PYQs**\n\n1. Identify repeated topics across years.\n2. Time-box practice (2 hours per question).\n3. Create one-page concise answer sheets for quick revision.\n\n**Pro Tip:** Practice synthesis questions first (they often carry the most marks).,
+        sources: [
+          { title: "Exam Prep Guide (demo)", uri: "https://example.com/exam-prep" }
+        ]
+      }
+    ];
+
+    // Insert a sample query
+    function insertExample() {
+      queryInput.value = "Syllabus for 5th sem CSE DBMS Module 3 and important PYQs";
+      queryInput.focus();
+    }
+
+    function clearOutput() {
+      responseText.innerHTML = "Your answers will appear here. Demo mode is enabled by default — the assistant returns mock, polished responses suitable for a hackathon demo.";
+      sourcesArea.classList.add('hidden');
+      sourcesList.innerHTML = "";
+    }
+
+    // Main function: either mock (demo) or a placeholder for real API (not used in demo)
+    async function askGemini() {
+      const userQuery = queryInput.value.trim();
+      if (!userQuery) {
+        responseText.innerHTML = '<span class="text-red-500">Please enter a question about your VTU academic needs.</span>';
+        return;
+      }
+
+      // UI state
+      askButton.disabled = true;
+      responseText.innerHTML = "";
+      loadingIndicator.classList.remove('hidden');
+      sourcesArea.classList.add('hidden');
+      sourcesList.innerHTML = "";
+
+      try {
+        const isDemo = demoToggle.checked;
+
+        // DEMO MODE: return a polished mock response
+        if (isDemo) {
+          await new Promise(r => setTimeout(r, 900)); // fake latency
+          // Simple intelligent selection: try to match keywords, otherwise random
+          let match = mockResponses.find(m =>
+            userQuery.toLowerCase().includes("dbms") ||
+            userQuery.toLowerCase().includes("band gap") ||
+            userQuery.toLowerCase().includes("pyq")
+          );
+
+          if (!match) {
+            // pick random
+            match = mockResponses[Math.floor(Math.random() * mockResponses.length)];
+          }
+
+          responseText.innerHTML = formatMarkdown(match.text);
+          sourcesArea.classList.remove('hidden');
+          sourcesList.innerHTML = match.sources.map((s, i) =>
+            <li><a href="${s.uri}" target="_blank" class="text-indigo-500 hover:text-indigo-700 hover:underline transition">[${i+1}] ${s.title}</a></li>
+          ).join('');
+          return;
+        }
+
+        // LIVE MODE (placeholder)
+        // NOTE: For the hackathon demo, we keep this disabled by default.
+        // If you later want to connect to a real backend, replace this block with a secure fetch to your server.
+        responseText.innerHTML = '<span class="text-yellow-600">Live mode is not configured in this frontend-only demo. Enable Demo Mode or implement a secure backend to call Gemini.</span>';
+
+      } catch (err) {
+        console.error("Error:", err);
+        responseText.innerHTML = <span class="text-red-500">An error occurred: ${err.message}</span>;
+      } finally {
+        askButton.disabled = false;
+        loadingIndicator.classList.add('hidden');
+      }
+    }
+  </script>
+</body>
+</html>
