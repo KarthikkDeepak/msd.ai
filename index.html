@@ -78,11 +78,12 @@
 
     function formatMarkdown(text) {
       if (!text) return "";
-      // Minimal formatting: bold, italics, line breaks, links
-      text = text.replace(/\\(.?)\\*/g, '<strong>$1</strong>');
-      text = text.replace(/\(.?)\*/g, '<em>$1</em>');
-      // transform simple markdown links [text](url)
-      text = text.replace(/\[(.?)\]\((https?:\/\/.?)\)/g, '<a href="$2" target="_blank" class="text-indigo-500 hover:underline">$1</a>');
+      // Minimal markdown -> HTML: **bold**, *italic*, [text](url), newlines
+      // Use non-greedy matching to avoid over-capturing
+      text = String(text);
+      text = text.replace(/\*\*(.+?)\*\*/gs, '<strong>$1</strong>');
+      text = text.replace(/\*(.+?)\*/gs, '<em>$1</em>');
+      text = text.replace(/\[(.+?)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" class="text-indigo-500 hover:underline">$1</a>');
       text = text.replace(/\n/g, '<br>');
       return text;
     }
@@ -91,7 +92,13 @@
     const mockResponses = [
       {
         title: "5th Sem CSE – DBMS Module 3 Summary",
-        text: **5th Sem CSE – DBMS Module 3 Summary**\n\n- *Normalization*: 1NF, 2NF, 3NF, BCNF\n- *Functional Dependencies* and *Decomposition*\n- *Lossless Join* and *Dependency Preservation*\n\n**Tip:** Focus on PYQs about BCNF & decomposition steps.,
+        text: `**5th Sem CSE – DBMS Module 3 Summary**
+
+- *Normalization*: 1NF, 2NF, 3NF, BCNF
+- *Functional Dependencies* and *Decomposition*
+- *Lossless Join* and *Dependency Preservation*
+
+**Tip:** Focus on PYQs about BCNF & decomposition steps.`,
         sources: [
           { title: "VTU DBMS Syllabus (demo link)", uri: "https://vtu.ac.in" },
           { title: "DBMS Notes - Demo", uri: "https://example.com/dbms-notes" }
@@ -99,14 +106,26 @@
       },
       {
         title: "Physics Lab – Band Gap of a Semiconductor",
-        text: **Physics Lab – Band Gap of a Semiconductor**\n\n- Measure reverse saturation current (I₀) at different temperatures.\n- Plot ln(I₀) vs 1/T.\n- Slope = -Eg/2k → calculate *Energy Band Gap (Eg)*.\n\n**Expected Eg:** ~1.1 eV for Silicon.,
+        text: `**Physics Lab – Band Gap of a Semiconductor**
+
+- Measure reverse saturation current (I₀) at different temperatures.
+- Plot ln(I₀) vs 1/T.
+- Slope = -Eg/2k → calculate *Energy Band Gap (Eg)*.
+
+**Expected Eg:** ~1.1 eV for Silicon.`,
         sources: [
           { title: "VTU Physics Lab Manual (demo)", uri: "https://vtu.ac.in" }
         ]
       },
       {
         title: "How to approach PYQs",
-        text: **How to approach PYQs**\n\n1. Identify repeated topics across years.\n2. Time-box practice (2 hours per question).\n3. Create one-page concise answer sheets for quick revision.\n\n**Pro Tip:** Practice synthesis questions first (they often carry the most marks).,
+        text: `**How to approach PYQs**
+
+1. Identify repeated topics across years.
+2. Time-box practice (2 hours per question).
+3. Create one-page concise answer sheets for quick revision.
+
+**Pro Tip:** Practice synthesis questions first (they often carry the most marks).`,
         sources: [
           { title: "Exam Prep Guide (demo)", uri: "https://example.com/exam-prep" }
         ]
@@ -146,22 +165,18 @@
         // DEMO MODE: return a polished mock response
         if (isDemo) {
           await new Promise(r => setTimeout(r, 900)); // fake latency
-          // Simple intelligent selection: try to match keywords, otherwise random
-          let match = mockResponses.find(m =>
-            userQuery.toLowerCase().includes("dbms") ||
-            userQuery.toLowerCase().includes("band gap") ||
-            userQuery.toLowerCase().includes("pyq")
-          );
+          const q = userQuery.toLowerCase();
+          let match = null;
 
-          if (!match) {
-            // pick random
-            match = mockResponses[Math.floor(Math.random() * mockResponses.length)];
-          }
+          if (q.includes('dbms')) match = mockResponses[0];
+          else if (q.includes('band gap') || q.includes('band-gap') || q.includes('bandgap')) match = mockResponses[1];
+          else if (q.includes('pyq') || q.includes('pyqs') || q.includes('previous year')) match = mockResponses[2];
+          else match = mockResponses[Math.floor(Math.random() * mockResponses.length)];
 
           responseText.innerHTML = formatMarkdown(match.text);
           sourcesArea.classList.remove('hidden');
           sourcesList.innerHTML = match.sources.map((s, i) =>
-            <li><a href="${s.uri}" target="_blank" class="text-indigo-500 hover:text-indigo-700 hover:underline transition">[${i+1}] ${s.title}</a></li>
+            `<li><a href="${s.uri}" target="_blank" class="text-indigo-500 hover:text-indigo-700 hover:underline transition">[${i+1}] ${s.title}</a></li>`
           ).join('');
           return;
         }
@@ -172,8 +187,8 @@
         responseText.innerHTML = '<span class="text-yellow-600">Live mode is not configured in this frontend-only demo. Enable Demo Mode or implement a secure backend to call Gemini.</span>';
 
       } catch (err) {
-        console.error("Error:", err);
-        responseText.innerHTML = <span class="text-red-500">An error occurred: ${err.message}</span>;
+        console.error('Error:', err);
+        responseText.innerHTML = `<span class="text-red-500">An error occurred: ${err && err.message ? err.message : String(err)}</span>`;
       } finally {
         askButton.disabled = false;
         loadingIndicator.classList.add('hidden');
